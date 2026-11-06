@@ -31,3 +31,11 @@
 *.out
 *.app
 /**/cmake-build-debug/
+
+# Visual Studio / CMake build output
+/.vs/
+/build/
+/out/
+test_skins_generator/out/
+*.user
+CMakeUserPresets.json
