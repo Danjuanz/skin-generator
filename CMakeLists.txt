@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.20)
 project(skins_generator)
 # Debug
 #set(CMAKE_BUILD_TYPE Debug)
@@ -53,7 +53,7 @@ file(COPY
 # [改动3] 删掉 add_definitions(-DBOOST_USE_WINAPI_VERSION=0x0600)
 #         预编译的 Boost 是 WinAPI 0x0A00(nt62)，强行声明 0x0600 会导致 41 个 boost::log 符号解析失败
 set(Boost_USE_STATIC_LIBS OFF)   # 预编译包只有 shared 版，BoostConfig 默认找 static
-find_package(Boost REQUIRED COMPONENTS log log_setup)
+find_package(Boost CONFIG REQUIRED COMPONENTS log log_setup)
 if (Boost_FOUND)
     message(STATUS "Boost library status:")
     message(STATUS "    Boost_VERSION: ${Boost_VERSION}")
