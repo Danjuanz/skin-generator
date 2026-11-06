@@ -251,7 +251,7 @@ void process_prefab(const string &prefix, json &skin_prefabs, json &builds, std:
 
     for (auto it = skin_prefabs.begin(); it != skin_prefabs.end();) {
 
-        if (enable_filter and filter.count(it.key()) == 0) {
+        if (enable_filter and filter.count(it.key()) > 0) {
             LOG(debug) << "skin_prefabs delete by filter: " << it.key() << endl;
             it = skin_prefabs.erase(it);
         } else if (!builds.contains(it.key())) {
@@ -303,7 +303,9 @@ void transfer_asset(json &skin_prefabs, const fs::path &dest, LExtractor &extrac
 
             if (resourceType == ITEM) {
                 bool process = ext == ".zip";
-                if (process) {
+                // .dyn 也要由生成器拷贝：新版 DST 的 mod 沙箱禁止 io.open 写文件，
+                // 运行时 transferInternal 会报 "invalid filepath" 导致 mod 加载失败
+                if (process || ext == ".dyn") {
                     TRANSFER_IF_NOT_EXIST(origin_name + ext, target.str(), animAcc.transfer, process)
                 }
             } else if (resourceType == BIGPORTRAITS) {
@@ -346,9 +348,17 @@ void CopyDirectoryContents(const fs::path &sourceDir, const fs::path &destinatio
     }
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+    const bool interactive = argc <= 1;
 //    const auto game_path = R"(E:\game\Steam\steamapps\common\Don't Starve Together)";
-    const auto game_path = GetFilePathFromFileDialog();
+    const std::string game_path = interactive
+                                  ? GetFilePathFromFileDialog()
+                                  : std::string(argv[1]);
+    bool skip_assets = false;
+    for (int i = 2; i < argc; ++i) {
+        if (std::string(argv[i]) == "--no-assets")
+            skip_assets = true;
+    }
 //    const char *game_path = selectFolder();
     try {
         LOG(info) << "start generate ... " << game_path << " <= " << ModName;
@@ -444,28 +454,30 @@ int main() {
 
         LOG(info) << "generate transfer resource ";
 
-        std::promise<int> promiseObj;
-        std::future<int> futureObj = promiseObj.get_future();
+        if (!skip_assets) {
+            std::promise<int> promiseObj;
+            std::future<int> futureObj = promiseObj.get_future();
 
-        // 启动一个线程执行任务，并将 promise 传递给线程
-        std::thread workerThread([promiseObj = std::move(promiseObj), &renderData, &destPath, &extractor]() mutable {
-            // 执行任务，将结果通过 promise 设置
-            try {
-                transfer_asset(renderData["skin_prefabs"], destPath, extractor);
-                promiseObj.set_value(0);
-            }
-            catch (const std::exception &e) {
-                // 捕获异常并打印错误消息
-                std::cerr << "error: " << e.what() << std::endl;
-                promiseObj.set_value(1);
-            }
-        });
-        transfer_asset(renderData["clothing"], destPath, extractor);
+            // 启动一个线程执行任务，并将 promise 传递给线程
+            std::thread workerThread([promiseObj = std::move(promiseObj), &renderData, &destPath, &extractor]() mutable {
+                // 执行任务，将结果通过 promise 设置
+                try {
+                    transfer_asset(renderData["skin_prefabs"], destPath, extractor);
+                    promiseObj.set_value(0);
+                }
+                catch (const std::exception &e) {
+                    // 捕获异常并打印错误消息
+                    std::cerr << "error: " << e.what() << std::endl;
+                    promiseObj.set_value(1);
+                }
+            });
+            transfer_asset(renderData["clothing"], destPath, extractor);
 
-        int rs = futureObj.get();
-        workerThread.join();
-        if (rs == 1) {
-            return 1;
+            int rs = futureObj.get();
+            workerThread.join();
+            if (rs == 1) {
+                return 1;
+            }
         }
         LOG(info) << "render data .....";
 
@@ -483,7 +495,7 @@ int main() {
 
         LOG(info) << "generate to " << destPath;
         LOG(info) << "Success ! ";
-        std::cin.get(); // 等待用户输入
+        if (interactive) std::cin.get(); // 等待用户输入
 
     } catch (const std::exception &e) {
         LOG(error) << "Exception caught: " << e.what() << std::endl;

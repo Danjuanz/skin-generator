@@ -34,7 +34,7 @@ if _G.TheNet:GetIsClient() then
     require("characterutil")
     local _SetSkinnedOvalPortraitTexture = SetSkinnedOvalPortraitTexture
     function SetSkinnedOvalPortraitTexture(image_widget, character, skin)
-        if skin and skin:start_with_that_prefix() then
+        if type(skin) == "string" and skin:start_with_that_prefix() then
             return
         end
         return _SetSkinnedOvalPortraitTexture(image_widget, character, skin)
@@ -360,7 +360,7 @@ end
 local _SpawnPrefab = SpawnPrefab
 function SpawnPrefab(name, skin, ...)
     local ent = _SpawnPrefab(name, skin, ...)
-    if ent and skin and skin:start_with_that_prefix() then
+    if ent and type(skin) == "string" and skin:start_with_that_prefix() then
         name = name:gsub("_placer", "")
         ApplySkin(ent, name, skin)
     end

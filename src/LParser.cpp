@@ -275,6 +275,9 @@ namespace LParser {
                 kvs["assets"] = AssertBuilder::build(ResourceType::ITEM, prefix, origin_build_name);
             } else if (type == "base") {
                 json &skins = kvs["skins"];
+                // hermitcrab_coral 之类的 NPC 皮肤没有 skins 字段，operator[] 会塞一个 null 进去，
+                // 模板遍历时 inja 会报 "object must be an object"
+                if (skins.is_null()) skins = json::object();
                 kvs["share_bigportrait_name"] = "\"" + skinid + "\"";
                 AssertBuilder builder(prefix);
                 for (auto it = skins.begin(); it != skins.end(); ++it) {
